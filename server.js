@@ -23,6 +23,7 @@ async function run() {
 
   const BlogsCollection = client.db("Monato").collection("blogs");
   const PartsCollection = client.db("Monato").collection("parts");
+  const ReviewsCollection = client.db("Monato").collection("reviews");
 
   //get all blogs to read
   app.get("/blogs", async (req, res) => {
@@ -39,6 +40,23 @@ async function run() {
     const result = await cursor.toArray();
     res.send(result);
   });
+
+  // get read part by _id
+  app.get('/parts/:id', async (req, res)=>{
+      const id = req.params.id;
+      const query = {_id: ObjectId(id)};
+      const parts = await PartsCollection.findOne(query);
+      res.send(parts);
+  } )
+
+  //get all reviews to read
+  app.get("/reviews", async (req, res) => {
+    const query = {};
+    const cursor = ReviewsCollection.find(query);
+    const result = await cursor.toArray();
+    res.send(result);
+  });
+
 
   console.log("Database Connected");
 }
