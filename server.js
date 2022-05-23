@@ -18,6 +18,30 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
+
+function CheckJWTToken(req, res, next) {
+  const hederAuth = req.headers.authorization
+  if (!hederAuth) {
+      return res.status(401).send({ message: 'unauthorized access.try again' })
+  }
+  else {
+      const token = hederAuth.split(' ')[1]
+      // console.log({ token });
+      jwt.verify(token, process.env.TOKEN, (err, decoded) => {
+
+          if (err) {
+              console.log(err);
+              return res.status(403).send({ message: 'forbidden access' })
+          }
+          // console.log('decoded', decoded);
+          req.decoded = decoded;
+          next()
+      })
+  }
+  // console.log(hederAuth, 'inside checkjwt');
+
+}
+
 async function run() {
   await client.connect();
 
@@ -69,6 +93,31 @@ async function run() {
       );
       res.send(result);
   } )
+
+
+  //JWT
+  app.post('/signin', async (req, res) => {
+    const user = req.body;
+    const getToken = jwt.sign(user, process.env.TOKEN, {
+        expiresIn: '1d'
+    });
+    res.send({ getToken });
+    })
+
+  // get items by email 
+  app.get('/singleItem', CheckJWTToken, async (req, res) => {
+    const decodedEmail = req.decoded.email;
+    const email = req.query.email;
+    if (email === decodedEmail) {
+        const query = { email: email }
+        const cursor = PartsCollection.find(query)
+        const items = await cursor.toArray()
+        res.send(items)
+    }
+    else {
+        return res.status(403).send({ message: 'forbidden access' })
+    }
+  })
 
   //get all reviews to read
   app.get("/reviews", async (req, res) => {
