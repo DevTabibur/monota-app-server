@@ -49,6 +49,27 @@ async function run() {
       res.send(parts);
   } )
 
+  // UPDATE parts  _id
+  app.put('/parts/:id', async (req, res)=>{
+      const id = req.params.id;
+      const data = req.body;
+      const filter = {_id: ObjectId(id)};
+      const options = {upsert : true};
+      const updateDoc ={
+        $set: {
+        name : data.name,
+        email : data.email,
+        quantity : data.addedQuantity,
+        contact : data.contact,
+        }
+      }
+
+      const result = await PartsCollection.updateOne(
+        filter, updateDoc, options
+      );
+      res.send(result);
+  } )
+
   //get all reviews to read
   app.get("/reviews", async (req, res) => {
     const query = {};
