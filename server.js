@@ -38,12 +38,30 @@ function CheckJWTToken(req, res, next) {
   // console.log(hederAuth, 'inside checkjwt');
 }
 
+function verifyJWT(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send({ message: "Unauthorized Access" });
+  }
+  const token = authHeader.split(" ")[1];
+  jwt.verify(token, process.env.TOKEN, (err, decoded) => {
+    if (err) {
+      return res.status(403).send({ message: "Forbidden access" });
+    }
+    console.log("decoded", decoded);
+    req.decoded = decoded;
+    next();
+  });
+}
+
 async function run() {
   await client.connect();
 
   const BlogsCollection = client.db("Monato").collection("blogs");
   const PartsCollection = client.db("Monato").collection("parts");
   const ReviewsCollection = client.db("Monato").collection("reviews");
+  const UsersCollection = client.db("Monato").collection("users");
+  const OrdersCollection = client.db("Monato").collection("orders");
 
   //get all blogs to read
   app.get("/blogs", async (req, res) => {
@@ -59,6 +77,60 @@ async function run() {
     const cursor = PartsCollection.find(query);
     const result = await cursor.toArray();
     res.send(result);
+  });
+
+  //get all reviews to read
+  app.get("/reviews", async (req, res) => {
+    const query = {};
+    const cursor = ReviewsCollection.find(query);
+    const result = await cursor.toArray();
+    res.send(result);
+  });
+
+  // get all users
+  app.get("/users", async (req, res) => {
+    const users = await UsersCollection.find().toArray();
+    res.send(users);
+  });
+
+  //create user
+  app.put("/users/:email", async (req, res) => {
+    const email = req.params.email;
+    const user = req.body;
+    const filter = { email: email };
+    const options = { upsert: true };
+    const updateDoc = {
+      $set: user,
+    };
+    const result = await UsersCollection.updateOne(filter, updateDoc, options);
+    const getToken = jwt.sign({ email: email }, process.env.TOKEN, {
+      expiresIn: "1d",
+    });
+    res.send({ result, getToken });
+  });
+
+  //put API to update an user
+  app.put("/users/:id", verifyJWT, async (req, res) => {
+    const decodedEmail = req.decoded.email;
+    const email = req.headers.email;
+    if (email === decodedEmail) {
+      const id = req.params.id;
+      const user = req.body;
+      console.log(user);
+      const options = { upsert: true };
+      await UsersCollection.updateOne(
+        { _id: ObjectId(id) },
+        {
+          $set: {
+            user,
+          },
+        },
+        options
+      );
+      res.send(user);
+    } else {
+      res.send("Unauthorized access");
+    }
   });
 
   // get read part by _id
@@ -99,9 +171,12 @@ async function run() {
   //JWT
   app.post("/signin", async (req, res) => {
     const user = req.body;
+    console.log(req.body, "user");
+
     const getToken = jwt.sign(user, process.env.TOKEN, {
       expiresIn: "1d",
     });
+
     res.send({ getToken });
   });
 
@@ -117,14 +192,6 @@ async function run() {
     } else {
       return res.status(403).send({ message: "forbidden access" });
     }
-  });
-
-  //get all reviews to read
-  app.get("/reviews", async (req, res) => {
-    const query = {};
-    const cursor = ReviewsCollection.find(query);
-    const result = await cursor.toArray();
-    res.send(result);
   });
 
   // post user added review on backend
