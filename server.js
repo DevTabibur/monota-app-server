@@ -88,6 +88,14 @@ async function run() {
     res.send(result);
   });
 
+  // delete parts from mongodb
+  app.delete("/parts/:id", async (req, res) => {
+    const id = req.params.id;
+    const query = { _id: ObjectId(id) };
+    const result = await PartsCollection.deleteOne(query);
+    res.send(result);
+  });
+
   //JWT
   app.post("/signin", async (req, res) => {
     const user = req.body;
