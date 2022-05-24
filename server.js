@@ -18,28 +18,24 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
-
 function CheckJWTToken(req, res, next) {
-  const hederAuth = req.headers.authorization
+  const hederAuth = req.headers.authorization;
   if (!hederAuth) {
-      return res.status(401).send({ message: 'unauthorized access.try again' })
-  }
-  else {
-      const token = hederAuth.split(' ')[1]
-      // console.log({ token });
-      jwt.verify(token, process.env.TOKEN, (err, decoded) => {
-
-          if (err) {
-              console.log(err);
-              return res.status(403).send({ message: 'forbidden access' })
-          }
-          // console.log('decoded', decoded);
-          req.decoded = decoded;
-          next()
-      })
+    return res.status(401).send({ message: "unauthorized access.try again" });
+  } else {
+    const token = hederAuth.split(" ")[1];
+    // console.log({ token });
+    jwt.verify(token, process.env.TOKEN, (err, decoded) => {
+      if (err) {
+        console.log(err);
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      // console.log('decoded', decoded);
+      req.decoded = decoded;
+      next();
+    });
   }
   // console.log(hederAuth, 'inside checkjwt');
-
 }
 
 async function run() {
@@ -66,58 +62,54 @@ async function run() {
   });
 
   // get read part by _id
-  app.get('/parts/:id', async (req, res)=>{
-      const id = req.params.id;
-      const query = {_id: ObjectId(id)};
-      const parts = await PartsCollection.findOne(query);
-      res.send(parts);
-  } )
+  app.get("/parts/:id", async (req, res) => {
+    const id = req.params.id;
+    const query = { _id: ObjectId(id) };
+    const parts = await PartsCollection.findOne(query);
+    res.send(parts);
+  });
 
   // UPDATE parts  _id
-  app.put('/parts/:id', async (req, res)=>{
-      const id = req.params.id;
-      const data = req.body;
-      const filter = {_id: ObjectId(id)};
-      const options = {upsert : true};
-      const updateDoc ={
-        $set: {
-        name : data.name,
-        email : data.email,
-        quantity : data.addedQuantity,
-        contact : data.contact,
-        }
-      }
+  app.put("/parts/:id", async (req, res) => {
+    const id = req.params.id;
+    const data = req.body;
+    const filter = { _id: ObjectId(id) };
+    const options = { upsert: true };
+    const updateDoc = {
+      $set: {
+        name: data.name,
+        email: data.email,
+        quantity: data.addedQuantity,
+        contact: data.contact,
+      },
+    };
 
-      const result = await PartsCollection.updateOne(
-        filter, updateDoc, options
-      );
-      res.send(result);
-  } )
-
+    const result = await PartsCollection.updateOne(filter, updateDoc, options);
+    res.send(result);
+  });
 
   //JWT
-  app.post('/signin', async (req, res) => {
+  app.post("/signin", async (req, res) => {
     const user = req.body;
     const getToken = jwt.sign(user, process.env.TOKEN, {
-        expiresIn: '1d'
+      expiresIn: "1d",
     });
     res.send({ getToken });
-    })
+  });
 
-  // get items by email 
-  app.get('/singleItem', CheckJWTToken, async (req, res) => {
+  // get items by email
+  app.get("/singleItem", CheckJWTToken, async (req, res) => {
     const decodedEmail = req.decoded.email;
     const email = req.query.email;
     if (email === decodedEmail) {
-        const query = { email: email }
-        const cursor = PartsCollection.find(query)
-        const items = await cursor.toArray()
-        res.send(items)
+      const query = { email: email };
+      const cursor = PartsCollection.find(query);
+      const items = await cursor.toArray();
+      res.send(items);
+    } else {
+      return res.status(403).send({ message: "forbidden access" });
     }
-    else {
-        return res.status(403).send({ message: 'forbidden access' })
-    }
-  })
+  });
 
   //get all reviews to read
   app.get("/reviews", async (req, res) => {
@@ -127,6 +119,12 @@ async function run() {
     res.send(result);
   });
 
+  // post user added review on backend
+  app.post("/reviews", async (req, res) => {
+    const reviewUser = req.body;
+    const result = await ReviewsCollection.insertOne(reviewUser);
+    res.send(result);
+  });
 
   console.log("Database Connected");
 }
