@@ -48,7 +48,7 @@ function verifyJWT(req, res, next) {
     if (err) {
       return res.status(403).send({ message: "Forbidden access" });
     }
-    console.log("decoded", decoded);
+    // console.log("decoded", decoded);
     req.decoded = decoded;
     next();
   });
@@ -82,7 +82,7 @@ const verifyAdmin = async (req, res, next) => {
 };
 
 //API to make Admin 
-app.put("/user/admin/:email", verifyJWT, verifyAdmin, async (req, res) => {
+app.put("/users/admin/:email", verifyJWT, verifyAdmin, async (req, res) => {
   const email = req.params.email;
   const filter = { email: email };
   const updateDoc = {
@@ -96,8 +96,9 @@ app.put("/user/admin/:email", verifyJWT, verifyAdmin, async (req, res) => {
 app.get("/admin/:email", async (req, res) => {
   const email = req.params.email;
   const user = await adminCollection.findOne({ email: email });
-  const isAdmin = user.role === "admin";
-  res.send({ admin: isAdmin });
+  // const isAdmin = user.role === "admin";
+  // admin: isAdmin
+  res.send({  });
 });
 
   //get all blogs to read
@@ -153,7 +154,7 @@ app.get("/admin/:email", async (req, res) => {
     if (email === decodedEmail) {
       const id = req.params.id;
       const user = req.body;
-      console.log(user);
+      // console.log(user);
       const options = { upsert: true };
       await UsersCollection.updateOne(
         { _id: ObjectId(id) },
@@ -208,7 +209,7 @@ app.get("/admin/:email", async (req, res) => {
   //JWT
   app.post("/signin", async (req, res) => {
     const user = req.body;
-    console.log(req.body, "user");
+    // console.log(req.body, "user");
 
     const getToken = jwt.sign(user, process.env.TOKEN, {
       expiresIn: "1d",
@@ -274,6 +275,23 @@ app.get("/admin/:email", async (req, res) => {
     );
     res.send(updatedOrder);
   });
+
+  app.get('/users/:email', verifyJWT, async (req, res) => {
+    const decodedEmail = req.decoded.email;
+    const email = req.params.email;
+    // console.log("email", email);
+    if (email === decodedEmail) {
+        const query = { email: email }
+        const cursor = UsersCollection.find(query)
+        const items = await cursor.toArray()
+        res.send(items)
+    }
+    else {
+        // console.log(param);
+        return res.status(403).send({ message: 'forbidden access' })
+
+    }
+})
 
   console.log("Database Connected");
 }
