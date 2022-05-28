@@ -68,6 +68,11 @@ async function run() {
   const OrdersCollection = client.db("Monato").collection("orders");
   const adminCollection = client.db("Monato").collection("admin");
 
+  // hello world
+  app.get('/', async(req, res)=>{
+    res.send("hello world")
+  })
+
   //Verify Admin Role 
 const verifyAdmin = async (req, res, next) => {
   const requester = req.decoded.email;
@@ -84,6 +89,7 @@ const verifyAdmin = async (req, res, next) => {
 //API to make Admin 
 app.put("/users/admin/:email", verifyJWT, verifyAdmin, async (req, res) => {
   const email = req.params.email;
+  console.log('make admin', email);
   const filter = { email: email };
   const updateDoc = {
       $set: { role: "admin" },
@@ -126,7 +132,7 @@ app.get("/admin/:email", async (req, res) => {
   });
 
   // get all users
-  app.get("/users", async (req, res) => {
+  app.get("/users",  async (req, res) => {
     const users = await UsersCollection.find().toArray();
     res.send(users);
   });
