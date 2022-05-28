@@ -148,8 +148,7 @@ app.put("/users/admin/:email", verifyJWT, verifyAdmin, async (req, res) => {
   const email = req.params.email;
   // console.log('make admin', email);
   const filter = { email: email };
-  const updateDoc = {Html Webpack Plugin:
-    Error: Child compilation failed:
+  const updateDoc = {
       $set: { role: "admin" },
   };
   const result = await UsersCollection.updateOne(filter, updateDoc);
