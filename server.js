@@ -4,6 +4,7 @@ const bodyParser = require("body-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 app.use(cors());
@@ -73,6 +74,62 @@ async function run() {
     res.send("hello world")
   })
 
+  //Stripe Payment method
+  app.post('/create-payment-intent', async (req, res) => {
+    const service = req.body
+    const price = service.price
+    const amount = price * 100
+    const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
+    });
+    res.send({ clientSecret: paymentIntent.client_secret })
+})
+app.get('/payment/:id', verifyJWT, async (req, res) => {
+    const id = req.params.id
+    const query = { _id: ObjectId(id) }
+    const order = await OrdersCollection.findOne(query)
+    res.send(order)
+})
+
+app.put('/ship/:id', async (req, res) => {
+
+    const id = req.params.id;
+
+    const order = req.body;
+
+    const options = { upsert: true }
+    const filter = { _id: ObjectId(id) }
+    //  console.log(filter,"filter email");
+    const updateDoc = {
+        $set: {
+            isDeliverd: true
+        }
+
+    };
+    const result = await OrdersCollection.updateOne(filter, updateDoc, options)
+
+    res.send(result)
+
+})
+
+app.patch('/orderPay/:id', verifyJWT, async (req, res) => {
+    const id = req.params.id
+    const payment = req.body
+    const filter = { _id: ObjectId(id) }
+    const updateDoc = {
+
+        $set: {
+            paid: true,
+            transactionId: payment.transactionId
+        },
+    };
+    const updateOrder = await OrdersCollection.updateOne(filter, updateDoc)
+    const result = await paymentCollection.insertOne(payment)
+    res.send(updateOrder)
+})
+
   //Verify Admin Role 
 const verifyAdmin = async (req, res, next) => {
   const requester = req.decoded.email;
@@ -89,12 +146,12 @@ const verifyAdmin = async (req, res, next) => {
 //API to make Admin 
 app.put("/users/admin/:email", verifyJWT, verifyAdmin, async (req, res) => {
   const email = req.params.email;
-  console.log('make admin', email);
+  // console.log('make admin', email);
   const filter = { email: email };
   const updateDoc = {
       $set: { role: "admin" },
   };
-  const result = await adminCollection.updateOne(filter, updateDoc);
+  const result = await UsersCollection.updateOne(filter, updateDoc);
   res.send(result);
 });
 
@@ -152,6 +209,24 @@ app.get("/admin/:email", async (req, res) => {
     });
     res.send({ result, getToken });
   });
+
+
+  //API to get order by email
+  app.get('/orders/:email', verifyJWT, async (req, res) => {
+    const decodedEmail = req.decoded.email
+    const email = req.params.email;
+    // console.log(email)
+    // console.log(decodedEmail)
+    if (email === decodedEmail) {
+        const query = { email: email }
+        const cursor = OrdersCollection.find(query)
+        const items = await cursor.toArray()
+        res.send(items)
+    }
+    else {
+        return res.status(403).send({ message: 'forbidden access' })
+    }
+})
 
   //put API to update an user
   app.put("/users/:id", verifyJWT, async (req, res) => {
@@ -298,6 +373,8 @@ app.get("/admin/:email", async (req, res) => {
 
     }
 })
+
+
 
   console.log("Database Connected");
 }
